@@ -122,7 +122,7 @@ export class AuthService {
       { sub: userId },
       {
         secret: this.configService.get('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRATION'),
+        expiresIn: Number(this.configService.get('JWT_EXPIRATION')),
       },
     );
 
@@ -130,7 +130,7 @@ export class AuthService {
       { sub: userId },
       {
         secret: this.configService.get('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION'),
+        expiresIn: Number(this.configService.get('JWT_REFRESH_EXPIRATION')),
       },
     );
 
