@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  phone         String    @unique
+  name          String
+  email         String?   @unique
+  role          Role      @default(USER)
+  passwordHash  String?
+  isVerified    Boolean   @default(false)
+  businesses    Business[]
+  groupsLed     Group[]   @relation("GroupLeader")
+  groupMembers  Group[]   @relation("GroupMembers")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Business {
+  id              String   @id @default(cuid())
+  ownerId         String
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name            String
+  type            String   // "individual", "group", "zungueira", "taxi", etc.
+  groupId         String?
+  group           Group?   @relation(fields: [groupId], references: [id])
+  isFormal        Boolean  @default(false)
+  taxId           String?  // NIF / AGT
+  creditScore     Int      @default(0)
+  financialRecords FinancialRecord[]
+  inventoryItems  InventoryItem[]
+  invoices        Invoice[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("businesses")
+}
+
+model Group {
+  id          String    @id @default(cuid())
+  leaderId    String
+  leader      User      @relation("GroupLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  members     User[]    @relation("GroupMembers")
+  businesses  Business[]
+  maxMembers  Int       @default(10)
+  status      GroupStatus @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("groups")
+}
+
+model FinancialRecord {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type        String   // INCOME / EXPENSE
+  amount      Float
+  category    String
+  description String?
+  date        DateTime
+  receiptUrl  String?
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("financial_records")
+}
+
+model InventoryItem {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  productName  String
+  quantity     Int
+  unitPrice    Float
+  lastSaleDate DateTime?
+  salesCount   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("inventory_items")
+}
+
+model Invoice {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  number       String   @unique
+  amount       Float
+  customerData Json?
+  status       String   @default("DRAFT") // DRAFT, SENT, PAID
+  pdfUrl       String?
+  sentToAGT    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("invoices")
+}
+
+enum Role {
+  USER
+  GROUP_LEADER
+  ADMIN
+}
+
+enum GroupStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
