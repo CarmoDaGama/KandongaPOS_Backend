@@ -13,6 +13,7 @@ export class AuthResponseDto {
       phone: '+244912345678',
       name: 'Joao Pedro',
       role: 'END_USER',
+      status: 'APPROVED',
     },
   })
   user: {
@@ -20,5 +21,6 @@ export class AuthResponseDto {
     phone: string;
     name: string;
     role: string;
+    status: string;
   };
 }

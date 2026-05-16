@@ -50,6 +50,7 @@ export class AuthService {
         phone: user.phone,
         name: user.name,
         role: user.role,
+        status: user.status,
       },
     };
   }
@@ -87,6 +88,7 @@ export class AuthService {
         phone: user.phone,
         name: user.name,
         role: user.role,
+        status: user.status,
       },
     };
   }
@@ -116,6 +118,7 @@ export class AuthService {
           phone: user.phone,
           name: user.name,
           role: user.role,
+          status: user.status,
         },
       };
     } catch (error) {

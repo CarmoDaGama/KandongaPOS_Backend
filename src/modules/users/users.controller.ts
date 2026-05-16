@@ -10,7 +10,7 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Criar novo usuário' })
+  @ApiOperation({ summary: 'Criar novo usuário (sem autenticação)' })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }

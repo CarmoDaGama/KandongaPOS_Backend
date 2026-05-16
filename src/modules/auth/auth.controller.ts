@@ -10,19 +10,19 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('signup')
-  @ApiOperation({ summary: 'Registrar novo usuário' })
+  @ApiOperation({ summary: 'Registrar novo usuário (sem autenticação)' })
   async signUp(@Body() signUpDto: SignUpDto): Promise<AuthResponseDto> {
     return this.authService.signUp(signUpDto);
   }
 
   @Post('signin')
-  @ApiOperation({ summary: 'Fazer login' })
+  @ApiOperation({ summary: 'Fazer login (sem autenticação)' })
   async signIn(@Body() signInDto: SignInDto): Promise<AuthResponseDto> {
     return this.authService.signIn(signInDto);
   }
 
   @Post('refresh')
-  @ApiOperation({ summary: 'Renovar token de acesso' })
+  @ApiOperation({ summary: 'Renovar token de acesso (sem autenticação)' })
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto): Promise<AuthResponseDto> {
     return this.authService.refreshToken(refreshTokenDto);
   }

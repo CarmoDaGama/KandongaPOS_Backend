@@ -2,17 +2,17 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber } from 'class-validator';
 
 export class CreateBusinessDto {
-  @ApiProperty({ example: 'Banca da Maria' })
+  @ApiProperty({ example: 'Banca da Maria', description: 'Nome do negócio' })
   @IsString()
   @IsNotEmpty()
   businessName: string;
 
-  @ApiProperty({ example: 'individual' })
+  @ApiProperty({ example: 'individual', description: 'Tipo: individual, group, zungueira, taxi, etc.' })
   @IsString()
   @IsNotEmpty()
   type: string;
 
-  @ApiPropertyOptional({ example: '1234567890123' })
+  @ApiPropertyOptional({ example: '1234567890123', description: 'Número de Identificação Fiscal' })
   @IsString()
   @IsOptional()
   nif?: string;
@@ -29,17 +29,17 @@ export class CreateBusinessDto {
 }
 
 export class UpdateBusinessDto {
-  @ApiPropertyOptional({ example: 'Banca da Maria' })
+  @ApiPropertyOptional({ example: 'Banca da Maria', description: 'Nome do negócio' })
   @IsString()
   @IsOptional()
   businessName?: string;
 
-  @ApiPropertyOptional({ example: 'group' })
+  @ApiPropertyOptional({ example: 'group', description: 'Tipo de negócio' })
   @IsString()
   @IsOptional()
   type?: string;
 
-  @ApiPropertyOptional({ example: '1234567890123' })
+  @ApiPropertyOptional({ example: '1234567890123', description: 'Número de Identificação Fiscal' })
   @IsString()
   @IsOptional()
   nif?: string;
