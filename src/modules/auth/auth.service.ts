@@ -34,6 +34,8 @@ export class AuthService {
         phone,
         name,
         passwordHash: hashedPassword,
+        role: 'END_USER',
+        status: 'PENDING',
         isVerified: true, // TODO: Implement OTP verification
       },
     });
@@ -62,6 +64,10 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Telefone ou senha inválidos');
+    }
+
+    if (user.status === 'REJECTED' || user.status === 'SUSPENDED') {
+      throw new UnauthorizedException('Usuário bloqueado');
     }
 
     // Verify password
@@ -144,6 +150,10 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado');
+    }
+
+    if (user.status === 'REJECTED' || user.status === 'SUSPENDED') {
+      throw new UnauthorizedException('Usuário bloqueado');
     }
 
     return user;

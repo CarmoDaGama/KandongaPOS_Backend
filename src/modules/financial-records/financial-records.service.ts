@@ -52,8 +52,8 @@ export class FinancialRecordsService {
         business: {
           select: {
             id: true,
-            name: true,
-            owner: {
+            businessName: true,
+            user: {
               select: {
                 id: true,
                 name: true,

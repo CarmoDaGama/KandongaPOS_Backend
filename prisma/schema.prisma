@@ -11,52 +11,62 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  phone         String    @unique
-  name          String
-  email         String?   @unique
-  role          Role      @default(USER)
-  passwordHash  String?
-  isVerified    Boolean   @default(false)
-  businesses    Business[]
-  groupsLed     Group[]   @relation("GroupLeader")
-  groupMembers  Group[]   @relation("GroupMembers")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                       String           @id @default(cuid())
+  phone                    String           @unique
+  name                     String
+  email                    String?          @unique
+  role                     Role             @default(END_USER)
+  status                   UserStatus       @default(PENDING)
+  passwordHash             String?
+  isVerified               Boolean          @default(false)
+  businesses               Business[]
+  entityProfile            EntityProfile?
+  creditRequestsAsEndUser  CreditRequest[]  @relation("EndUserRequests")
+  creditRequestsAsEntity   CreditRequest[]  @relation("EntityRequests")
+  reviewedCreditRequests    CreditRequest[]  @relation("ReviewedBy")
+  posSellers               POSeller[]
+  groupsLed                Group[]          @relation("GroupLeader")
+  groupMembers             Group[]          @relation("GroupMembers")
+  logs                     ActivityLog[]
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
 
   @@map("users")
 }
 
 model Business {
-  id              String   @id @default(cuid())
-  ownerId         String
-  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name            String
-  type            String   // "individual", "group", "zungueira", "taxi", etc.
-  groupId         String?
-  group           Group?   @relation(fields: [groupId], references: [id])
-  isFormal        Boolean  @default(false)
-  taxId           String?  // NIF / AGT
-  creditScore     Int      @default(0)
+  id               String           @id @default(cuid())
+  userId           String           @map("ownerId")
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName     String           @map("name")
+  type             String
+  groupId          String?
+  group            Group?           @relation(fields: [groupId], references: [id])
+  nif              String?          @map("taxId")
+  creditScore      Int              @default(0)
+  totalRevenue     Decimal          @default(0)
+  isFormal         Boolean          @default(false)
   financialRecords FinancialRecord[]
-  inventoryItems  InventoryItem[]
-  invoices        Invoice[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  inventoryItems   InventoryItem[]
+  invoices         Invoice[]
+  posSellers       POSeller[]
+  creditRequests   CreditRequest[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@map("businesses")
 }
 
 model Group {
-  id          String    @id @default(cuid())
-  leaderId    String
-  leader      User      @relation("GroupLeader", fields: [leaderId], references: [id], onDelete: Cascade)
-  members     User[]    @relation("GroupMembers")
-  businesses  Business[]
-  maxMembers  Int       @default(10)
-  status      GroupStatus @default(ACTIVE)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String        @id @default(cuid())
+  leaderId   String
+  leader     User          @relation("GroupLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  members    User[]        @relation("GroupMembers")
+  businesses Business[]
+  maxMembers Int           @default(10)
+  status     GroupStatus   @default(ACTIVE)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   @@map("groups")
 }
@@ -109,10 +119,94 @@ model Invoice {
   @@map("invoices")
 }
 
+model EntityProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionName String
+  nif             String   @unique
+  licenseNumber   String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("entity_profiles")
+}
+
+model CreditRequest {
+  id           String       @id @default(cuid())
+  endUserId    String
+  endUser      User         @relation("EndUserRequests", fields: [endUserId], references: [id])
+  entityUserId String
+  entityUser   User         @relation("EntityRequests", fields: [entityUserId], references: [id])
+  businessId   String?
+  business     Business?    @relation(fields: [businessId], references: [id])
+  amount       Decimal
+  purpose      String
+  status       CreditStatus @default(PENDING)
+  aiAnalysis   Json?
+  aiScore      Float?
+  platformFee  Decimal      @default(0)
+  paymentRef   String?
+  reviewedAt   DateTime?
+  reviewedById String?
+  reviewedBy   User?        @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("credit_requests")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@map("activity_logs")
+}
+
+model POSeller {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sellerName  String
+  phone       String?
+  role        String?
+  isActive    Boolean  @default(true)
+  salesCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pos_sellers")
+}
+
 enum Role {
   USER
   GROUP_LEADER
   ADMIN
+  END_USER
+  ENTITY_USER
+  PLATFORM_ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum CreditStatus {
+  PENDING
+  AI_ANALYZED
+  APPROVED
+  REJECTED
+  PAID
 }
 
 enum GroupStatus {

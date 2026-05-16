@@ -5,7 +5,7 @@ export class CreateBusinessDto {
   @ApiProperty({ example: 'Banca da Maria' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  businessName: string;
 
   @ApiProperty({ example: 'individual' })
   @IsString()
@@ -15,7 +15,7 @@ export class CreateBusinessDto {
   @ApiPropertyOptional({ example: '1234567890123' })
   @IsString()
   @IsOptional()
-  taxId?: string;
+  nif?: string;
 
   @ApiPropertyOptional({ example: false })
   @IsBoolean()
@@ -32,7 +32,7 @@ export class UpdateBusinessDto {
   @ApiPropertyOptional({ example: 'Banca da Maria' })
   @IsString()
   @IsOptional()
-  name?: string;
+  businessName?: string;
 
   @ApiPropertyOptional({ example: 'group' })
   @IsString()
@@ -42,7 +42,7 @@ export class UpdateBusinessDto {
   @ApiPropertyOptional({ example: '1234567890123' })
   @IsString()
   @IsOptional()
-  taxId?: string;
+  nif?: string;
 
   @ApiPropertyOptional({ example: true })
   @IsBoolean()

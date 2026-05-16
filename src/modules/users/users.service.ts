@@ -12,6 +12,8 @@ export class UsersService {
         phone: createUserDto.phone,
         name: createUserDto.name,
         email: createUserDto.email,
+        role: 'END_USER',
+        status: 'PENDING',
       },
     });
   }
@@ -24,6 +26,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        status: true,
         isVerified: true,
         createdAt: true,
       },
@@ -39,6 +42,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        status: true,
         isVerified: true,
         businesses: true,
         createdAt: true,
@@ -68,6 +72,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        status: true,
         isVerified: true,
         createdAt: true,
       },

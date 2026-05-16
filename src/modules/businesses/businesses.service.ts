@@ -6,25 +6,25 @@ import { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
 export class BusinessesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createBusinessDto: CreateBusinessDto, ownerId: string) {
+  async create(createBusinessDto: CreateBusinessDto, userId: string) {
     return this.prisma.business.create({
       data: {
-        name: createBusinessDto.name,
+        businessName: createBusinessDto.businessName,
         type: createBusinessDto.type,
-        taxId: createBusinessDto.taxId,
+        nif: createBusinessDto.nif,
         isFormal: createBusinessDto.isFormal || false,
         groupId: createBusinessDto.groupId,
-        ownerId,
+        userId,
       },
     });
   }
 
-  async findAll(ownerId?: string) {
-    const where = ownerId ? { ownerId } : {};
+  async findAll(userId?: string) {
+    const where = userId ? { userId } : {};
     return this.prisma.business.findMany({
       where,
       include: {
-        owner: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -41,7 +41,7 @@ export class BusinessesService {
     const business = await this.prisma.business.findUnique({
       where: { id },
       include: {
-        owner: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -72,7 +72,7 @@ export class BusinessesService {
       where: { id },
       data: updateBusinessDto,
       include: {
-        owner: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -94,7 +94,7 @@ export class BusinessesService {
       where: { id },
       select: {
         id: true,
-        name: true,
+        businessName: true,
       },
     });
   }

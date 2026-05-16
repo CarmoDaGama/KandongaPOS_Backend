@@ -1,241 +1,217 @@
-**Plano de Implementação do Backend com Nest.js**
+**✅ PLANO ATUALIZADO DO BACKEND – KANDONGA**  
+**Tecnologia:** Nest.js + TypeScript
 
-### 1. Visão Geral da Arquitetura (Recomendada)
+### 1. Visão Geral da Arquitetura
 
-Adote uma **arquitetura modular + Clean Architecture / DDD lite** para facilitar a manutenção e escalabilidade em hackathon.
+- **Framework:** NestJS (com Fastify)
+- **ORM:** Prisma + PostgreSQL
+- **Autenticação:** JWT + Refresh Token + Role-based Guards
+- **Validação:** class-validator + DTOs
+- **Documentação:** Swagger
+- **Filas:** BullMQ + Redis
+- **Cache:** Redis
+- **IA:** Integração com Grok API / OpenAI / Claude (via LangChain ou HTTP)
+- **Armazenamento:** Supabase ou MinIO (comprovativos, PDFs)
+- **Pagamentos:** Mock + preparação para GPO (webhooks)
 
-- **Padrão**: NestJS + TypeScript
-- **HTTP Adapter**: Fastify (mais performático que Express)
-- **ORM**: Prisma (mais rápido para protótipos) ou TypeORM
-- **Validação**: class-validator + class-transformer
-- **Autenticação**: JWT + Refresh Token + Guards
-- **Documentação**: Swagger (NestJS Swagger)
-- **Queue**: BullMQ + Redis (para jobs assíncronos: relatórios, análise de IA, notificações)
-- **Cache**: Redis
-- **Logs**: Winston + Pino
-- **Testes**: Jest
-
-**Estrutura de Pastas (recomendada)**
+**Estrutura de Pastas (Clean Architecture)**
 
 ```
 /src
-  /common          (filters, interceptors, guards, decorators)
+  /common
+    /decorators
+    /filters
+    /guards
+    /interceptors
   /config
   /modules
-    /auth
-    /users
-    /businesses
-    /financial-records
-    /inventory
-    /groups          (grupos de 10 pessoas)
-    /invoices
-    /payments
-    /credit-analysis
-    /reports
-    /ai-analysis
-  /shared          (services reutilizáveis)
-  /database
+    ├── auth
+    ├── users
+    ├── entities          (Bancos e Instituições Financeiras)
+    ├── businesses        (Perfil das micro empresas)
+    ├── pos               (Gestão de vendedores)
+    ├── financial-records
+    ├── inventory
+    ├── credit-requests   ← Novo e prioritário
+    ├── invoices
+    ├── groups
+    ├── platform-logs
+    ├── ai-analysis
+    └── reports
+  /shared
+  prisma/
   main.ts
 ```
 
-### 2. Entidades Principais (Banco de Dados)
+### 2. Modelo de Dados (Prisma Schema – Principal)
 
 ```prisma
-// Exemplo com Prisma
-model User {
-  id            String   @id @default(cuid())
-  phone         String   @unique
-  name          String
-  role          Role     // USER, ADMIN, GROUP_LEADER
-  businesses    Business[]
-  createdAt     DateTime @default(now())
+enum Role {
+  END_USER
+  ENTITY_USER
+  PLATFORM_ADMIN
 }
 
-model Business {
-  id              String   @id @default(cuid())
-  ownerId         String
-  owner           User     @relation(fields: [ownerId], references: [id])
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum CreditStatus {
+  PENDING
+  AI_ANALYZED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model User {
+  id              String        @id @default(cuid())
+  phone           String        @unique
   name            String
-  type            String   // "individual", "group", "zungueira", "taxi", etc.
+  email           String?
+  role            Role
+  status          UserStatus    @default(PENDING)
+  createdAt       DateTime      @default(now())
+
+  business        Business?
+  entityProfile   EntityProfile?
+  creditRequestsAsEndUser   CreditRequest[] @relation("EndUserRequests")
+  creditRequestsAsEntity    CreditRequest[] @relation("EntityRequests")
+  logs            ActivityLog[]
+}
+
+model EntityProfile {           // Banco / Instituição
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  institutionName   String
+  nif               String   @unique
+  licenseNumber     String
+  isActive          Boolean  @default(true)
+}
+
+model Business {                // Perfil da micro empresa (End User)
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  businessName    String
+  type            String   // zungueira, taxi, loja, etc.
   groupId         String?
   group           Group?
-  isFormal        Boolean  @default(false)
-  taxId           String?  // NIF / AGT
+  nif             String?
   creditScore     Int      @default(0)
-  financialRecords FinancialRecord[]
-  inventoryItems  InventoryItem[]
-  invoices        Invoice[]
+  totalRevenue    Decimal  @default(0)
 }
 
-model Group {  // Até 10 membros
-  id          String    @id @default(cuid())
-  leaderId    String
-  members     Business[] // ou User[]
-  maxMembers  Int       @default(10)
-  status      GroupStatus
+model CreditRequest {
+  id              String       @id @default(cuid())
+  endUserId       String
+  endUser         User         @relation("EndUserRequests", fields: [endUserId], references: [id])
+  entityUserId    String
+  entityUser      User         @relation("EntityRequests", fields: [entityUserId], references: [id])
+
+  amount          Decimal
+  purpose         String
+  status          CreditStatus @default(PENDING)
+  aiAnalysis      Json?        // Resultado completo da IA
+  aiScore         Float?
+  platformFee     Decimal      @default(0)
+  paymentRef      String?      // Referência GPO
+  reviewedAt      DateTime?
+  reviewedById    String?
+
+  createdAt       DateTime     @default(now())
 }
 
-model FinancialRecord {
+model ActivityLog {
   id          String   @id @default(cuid())
-  businessId  String
-  type        String   // INCOME / EXPENSE
-  amount      Decimal
-  category    String
-  description String?
-  date        DateTime
-  receiptUrl  String?
-  isVerified  Boolean  @default(false)
-}
-
-model InventoryItem {
-  id           String   @id @default(cuid())
-  businessId   String
-  productName  String
-  quantity     Int
-  unitPrice    Decimal
-  lastSaleDate DateTime?
-  salesCount   Int      @default(0)
-}
-
-model Invoice {
-  id           String   @id @default(cuid())
-  businessId   String
-  number       String   @unique
-  amount       Decimal
-  customerData Json?
-  status       String
-  pdfUrl       String?
-  sentToAGT    Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String
+  details     Json?
+  createdAt   DateTime @default(now())
 }
 ```
 
-### 3. Módulos e Funcionalidades Principais
+(Inclua também os modelos anteriores: `FinancialRecord`, `InventoryItem`, `Invoice`, `Group`, `POSeller`, etc.)
 
-**Módulo Auth**
-- Registro por telefone (OTP via SMS - usar Twilio ou serviço angolano)
-- JWT + Refresh Token
-- Roles + Policies (CASL ou custom)
+### 3. Módulos e Responsabilidades
 
-**Módulo Businesses**
-- CRUD
-- Transformar em "formal" ao criar grupo ou ter registros mínimos
-- Associação a grupos (máx 10)
+| Módulo                | Principais Responsabilidades |
+|-----------------------|------------------------------|
+| **auth**              | Login com telefone + OTP, JWT, Role Guards |
+| **users**             | CRUD, aprovação de registo (Admin) |
+| **entities**          | Cadastro e gestão de Bancos (só Admin) |
+| **businesses**        | Perfil da empresa do End User |
+| **pos**               | Gestão de vendedores/caixas do negócio |
+| **financial-records** | Entradas, saídas, balanço, importação |
+| **inventory**         | Stock + IA preditiva |
+| **credit-requests**   | **Módulo mais importante** – criação, análise IA, aprovação |
+| **ai-analysis**       | Análise de crédito, fraude, predição de stock |
+| **invoices**          | Facturas + exportação AGT |
+| **groups**            | Grupos de até 10 membros |
+| **platform-logs**     | Logs para Admin |
+| **reports**           | Relatórios por role |
 
-**Módulo Financial Records**
-- Registro de entradas/saídas (com upload de comprovativo)
-- Dashboard: balanço, fluxo de caixa
-- Importação de dados (CSV/Excel) → endpoint `/financial/import`
+### 4. Fluxos Principais Implementados
 
-**Módulo Inventory**
-- Controle em tempo real (WebSocket opcional)
-- Análise preditiva (ver IA)
+**Fluxo de Crédito (Core Feature):**
 
-**Módulo Invoices**
-- Geração de factura (PDF com pdf-lib ou @pdfme/generator)
-- Exportação para AGT (preparar payload XML/JSON conforme formato AGT)
-- Número de referência único
+1. End User → `POST /credit-requests` (escolhe banco)
+2. Sistema → Executa IA automaticamente (`ai-analysis/credit`)
+3. Se score baixo → Rejeição automática
+4. Se score bom → Pedido vai para o Entity User
+5. Entity User → Analisa + Aprova/Recusa
+6. Aprovação → Gerar referência GPO + deduzir fee da plataforma
+7. Webhook GPO → Atualizar status para `PAID`
 
-**Módulo Payments**
-- Geração de referência de pagamento (para EMIS, Unitel Money, etc.)
-- Webhooks de confirmação de pagamento
-- Integração com gateway angolano (se disponível na API)
+### 5. Plano de Implementação (Hackathon – 3 dias)
 
-**Módulo Groups**
-- Criar grupo, adicionar membros
-- Relatórios consolidados do grupo (para facilitar financiamento)
+**Dia 1 (Fundação)**
+- Setup NestJS + Prisma + Fastify + Swagger
+- Módulos: `auth`, `users`, `entities`
+- Roles + Guards
+- Modelos principais + migrações
 
-**Módulo Credit Analysis**
-- Cálculo de score baseado em:
-  - Volume de transações
-  - Regularidade
-  - Razão corrente, liquidez
-  - Histórico de pagamentos
-- Exportar relatório PDF/JSON para bancos
+**Dia 2 (Core)**
+- `businesses`, `financial-records`, `inventory`, `pos`
+- `credit-requests` + integração IA básica
+- Geração de facturas e referências de pagamento
 
-**Módulo AI Analysis** (crítico para o projeto)
-- Usar **NestJS + LangChain** ou chamadas diretas para:
-  - Grok API / OpenAI / Claude / Llama local
-- Análises:
-  - Detecção de fraude (padrões anormais de transações)
-  - Perfil de crédito (prompt estruturado)
-  - Predição de stock (o que vende mais, quando repor)
-  - Sugestões de produtos
+**Dia 3 (Finalização)**
+- Módulo Admin (logs, visualização de transações, saldo)
+- Grupos + exportação AGT
+- Anti-fraude + análise preditiva
+- Testes + Documentação Swagger
+- Docker + README
 
-Exemplo de service:
-```ts
-@Injectable()
-export class AiService {
-  async analyzeCredit(businessId: string) { ... }
-  async predictStock(businessId: string) { ... }
-  async detectFraud(records: FinancialRecord[]) { ... }
-}
-```
+### 6. Tecnologias Recomendadas
 
-### 4. Fluxo de Implementação (Hackathon - Prioridades)
+- **Banco:** PostgreSQL
+- **Fila:** BullMQ + Redis (análise IA, relatórios, notificações)
+- **PDF:** `pdf-lib` ou Puppeteer
+- **IA:** Grok API (preferencial) ou OpenAI
+- **Deploy:** Railway ou Render (suporta Redis)
 
-**Fase 1 (MVP - Dia 1)**
-1. Setup do projeto NestJS + Prisma + PostgreSQL (ou SQLite para teste)
-2. Módulos: Auth, Users, Businesses, Financial Records
-3. CRUD básico + autenticação
+### 7. Segurança e Boas Práticas
 
-**Fase 2 (Dia 1-2)**
-4. Módulo Inventory + Invoices (geração PDF)
-5. Geração de referências de pagamento
-6. Módulo Groups
-
-**Fase 3 (Dia 2-3)**
-7. Credit Analysis (lógica simples + IA)
-8. Export AGT (mock primeiro)
-9. Anti-fraude básico + relatórios
-
-**Fase 4 (Polimento)**
-10. Redis + BullMQ
-11. Swagger completo
-12. Rate limiting + segurança
-13. Docker + docker-compose
-
-### 5. Tecnologias Recomendadas (Hackathon)
-
-| Camada           | Tecnologia                     |
-|------------------|--------------------------------|
-| Banco            | PostgreSQL + Prisma            |
-| Cache/Queue      | Redis + BullMQ                 |
-| Armazenamento    | Supabase Storage ou AWS S3     |
-| IA               | Grok API ou OpenAI             |
-| PDF              | pdf-lib ou puppeteer           |
-| Deploy           | Railway / Render / Fly.io      |
-
-### 6. Boas Práticas Essenciais
-
-- Usar **DTOs** em todos os endpoints
-- **Exception Filters** personalizados
-- **Interceptors** para transformar respostas
-- **Pipes** de validação global
-- Logging estruturado
-- Config via `ConfigModule` (dotenv)
-- Testes unitários nos services críticos (credit analysis e fraud)
-
-### 7. Endpoints Principais (Exemplo)
-
-- `POST /auth/login` (phone + OTP)
-- `POST /businesses` + `/businesses/:id/records`
-- `POST /invoices` + `/invoices/export-agt`
-- `POST /groups`
-- `POST /ai/credit-analysis/:businessId`
-- `POST /financial/import`
-- `GET /reports/group/:groupId`
+- Cada role só acessa o que deve (Policy-based authorization)
+- Rate limiting por IP e por user
+- Validação rigorosa em todos os DTOs
+- Logs de auditoria (ActivityLog)
+- Exception filters personalizados
+- Config via `ConfigModule` (.env)
 
 ---
 
-**Próximos Passos Imediatos:**
+**Quer que eu gere agora algum dos seguintes itens?**
 
-1. Criar o projeto: `npx nest new backend --package-manager npm`
-2. Instalar dependências principais:
-   ```bash
-   npm i prisma @prisma/client fastify @nestjs/platform-fastify class-validator class-transformer bullmq redis
-   npm i -D prisma
-   ```
-3. Configurar Prisma + Swagger
+1. **Schema Prisma completo** (todo o arquivo `schema.prisma`)
+2. **Estrutura detalhada do módulo `credit-requests`** (controller, service, dto)
+3. **Código base de todos os módulos** (arquitetura inicial)
+4. **DTOs principais** + Guards de Role
 
-Quer que eu gere agora o **código base completo** (estrutura de pastas + módulos principais) ou prefere focar primeiro em algum módulo específico (ex: Financial Records + Credit Analysis)?
+Diga-me qual parte quer ver primeiro ou se prefere o plano ainda mais detalhado em alguma área específica.

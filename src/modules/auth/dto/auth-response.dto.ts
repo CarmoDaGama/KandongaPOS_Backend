@@ -12,7 +12,7 @@ export class AuthResponseDto {
       id: 'ckxyz123',
       phone: '+244912345678',
       name: 'Joao Pedro',
-      role: 'USER',
+      role: 'END_USER',
     },
   })
   user: {
